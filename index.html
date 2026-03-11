@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最討厭食物生死戰</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@9.4.3/dist/mermaid.min.js"></script>
+    <style>
+        /* 全域設定 */
+        body {
+            margin: 0;
+            font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #bracket-img {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            max-width: 250px;
+            border: 2px solid #333;
+            background-color: white;
+            z-index: 100;
+        }
+
+        #header-area {
+            text-align: center;
+            padding: 10px 20px;
+            position: relative;
+        }
+
+        h1 {
+            margin: 10px 0;
+            font-size: 2.5rem;
+        }
+
+        h3 {
+            margin: 5px 0;
+            color: #333;
+            font-size: 1.5rem;
+            background: #eee;
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+
+        .instruction {
+            color: #d93025;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        #battle-container {
+            display: flex;
+            flex: 1;
+            width: 100%;
+            border-top: 5px solid black;
+            border-bottom: 5px solid black;
+        }
+
+        .side {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            user-select: none;
+        }
+
+        .side:hover {
+            filter: brightness(0.85);
+            transform: scale(1.03);
+            z-index: 10;
+        }
+
+        .red-side {
+            background-color: #ff4d4d;
+            border-right: 5px solid black;
+        }
+
+        .blue-side {
+            background-color: #4d4dff;
+        }
+
+        .food-name {
+            font-size: 6rem;
+            font-weight: bold;
+            color: white;
+            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.6);
+            letter-spacing: 5px;
+        }
+
+        .record-text {
+            font-size: 1.5rem;
+            color: white;
+            margin-top: 15px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 5px 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        /* 結果回顧表區域 */
+        #result-container {
+            display: none;
+            padding: 40px;
+            text-align: center;
+            height: 100%;
+            overflow-y: auto;
+            background: #fdfdfd;
+        }
+
+        .champion-title {
+            font-size: 3rem;
+            color: #d93025;
+            margin-bottom: 10px;
+        }
+
+        #champion-name {
+            font-size: 5rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px #aaa;
+            margin: 0 0 30px 0;
+        }
+
+        /* 爬梯圖容器 */
+        #chart-wrapper {
+            margin: 30px auto;
+            width: 90%;
+            border: 2px dashed #aaa;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            overflow-x: auto;
+            /* 讓寬度過長的圖表可以左右滑動 */
+        }
+
+        table {
+            margin: 30px auto;
+            border-collapse: collapse;
+            width: 80%;
+            max-width: 800px;
+            font-size: 1.2rem;
+            background: white;
+        }
+
+        th,
+        td {
+            border: 1px solid #333;
+            padding: 12px;
+        }
+
+        th {
+            background-color: #f1f1f1;
+        }
+
+        .win-text {
+            color: red;
+            font-weight: bold;
+        }
+
+        .lose-text {
+            color: blue;
+        }
+    </style>
+</head>
+
+<body>
+
+    <img src="image.png" id="bracket-img" alt="梯子表">
+
+    <div id="header-area">
+        <h1>最討厭食物生死戰</h1>
+        <h3 id="match-type">準備開始...</h3>
+        <p class="instruction">👇 點擊你覺得【比較討厭】的食物，讓它晉級！(吞兩敗才會淘汰) 👇</p>
+    </div>
+
+    <div id="battle-container">
+        <div class="side red-side" onclick="pick('left')">
+            <span id="left-name" class="food-name">載入中</span>
+            <div id="left-record" class="record-text">0勝 0敗</div>
+        </div>
+        <div class="side blue-side" onclick="pick('right')">
+            <span id="right-name" class="food-name">載入中</span>
+            <div id="right-record" class="record-text">0勝 0敗</div>
+        </div>
+    </div>
+
+    <div id="result-container">
+        <div class="champion-title">🏆 最終最討厭食物霸主 🏆</div>
+        <div id="champion-name"></div>
+
+        <h2>動態賽程爬梯圖 (自動生成)</h2>
+        <p style="color: #666;">（圖表由左至右推進，紀錄每一場的勝敗流向。圖表若太寬可左右滑動）</p>
+        <div id="chart-wrapper">
+            <div class="mermaid" id="bracket-chart"></div>
+        </div>
+
+        <h2>賽程對戰成績總表</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>回合</th>
+                    <th>賽局階段</th>
+                    <th>晉級 (較討厭)</th>
+                    <th>吞敗 (較不討厭)</th>
+                </tr>
+            </thead>
+            <tbody id="history-body"></tbody>
+        </table>
+    </div>
+
+    <script>
+        // 初始化 Mermaid
+        mermaid.initialize({ startOnLoad: false, theme: 'default' });
+
+        const initialFoods = [
+            "香菜", "三色豆", "茄子", "苦瓜",
+            "豬血糕", "芋頭", "青椒", "韭菜",
+            "芹菜", "榴槤", "秋葵", "肥肉",
+            "魚露", "八角", "雞肝", "鹹蛋黃"
+        ];
+
+        let players = initialFoods.map(name => ({ name: name, wins: 0, losses: 0 }));
+        players.sort(() => Math.random() - 0.5);
+
+        let history = [];
+        let currentMatch = null;
+
+        // --- Mermaid 爬梯圖生成參數 ---
+        let mermaidCode = "graph LR\n"; // 設定為由左至右的流程圖
+        let lastNode = {}; // 紀錄每個食物「最後一次出現」的節點 ID
+        let matchCounter = 1;
+
+        // 建立初始起點節點
+        initialFoods.forEach((f, i) => {
+            let nId = "S" + i;
+            lastNode[f] = nId;
+            mermaidCode += `  ${nId}(["${f}"])\n`;
+        });
+        // ------------------------------
+
+        function getNextMatch() {
+            let active = players.filter(p => p.losses < 2);
+            if (active.length < 2) return null;
+
+            active.sort((a, b) => {
+                let aGames = a.wins + a.losses;
+                let bGames = b.wins + b.losses;
+                if (aGames !== bGames) return aGames - bGames;
+                if (b.losses !== a.losses) return b.losses - a.losses;
+                return b.wins - a.wins;
+            });
+
+            let p1 = active[0];
+            let p2 = active[1];
+            let type = "";
+            let isFinal = active.length === 2;
+
+            if (isFinal) {
+                if (p1.losses === 1 && p2.losses === 1) type = "🔥 終極生死戰 (雙方皆1敗，贏家即冠軍) 🔥";
+                else type = "🏆 總決賽";
+            } else if (p1.wins === 0 && p1.losses === 0 && p2.wins === 0 && p2.losses === 0) {
+                type = "🟢 第一輪";
+            } else if (p1.losses === 1 && p2.losses === 1) {
+                if (p1.wins === 0) type = "🔴 敗者組 (0勝 1敗)";
+                else type = `🟣 勝敗組 (${p1.wins}勝 1敗 vs ${p2.wins}勝 1敗)`;
+            } else if (p1.losses === 0 && p2.losses === 0) {
+                type = `🔵 勝者組 (${p1.wins}勝 0敗 vs ${p2.wins}勝 0敗)`;
+            } else {
+                type = `⚔️ 混合交鋒 (${p1.wins}勝${p1.losses}敗 vs ${p2.wins}勝${p2.losses}敗)`;
+            }
+
+            return { p1, p2, type };
+        }
+
+        function updateUI() {
+            currentMatch = getNextMatch();
+
+            if (!currentMatch) {
+                showResults();
+                return;
+            }
+
+            document.getElementById('match-type').innerText = `【 目前賽程：${currentMatch.type} 】`;
+            document.getElementById('left-name').innerText = currentMatch.p1.name;
+            document.getElementById('left-record').innerText = `${currentMatch.p1.wins}勝 ${currentMatch.p1.losses}敗`;
+            document.getElementById('right-name').innerText = currentMatch.p2.name;
+            document.getElementById('right-record').innerText = `${currentMatch.p2.wins}勝 ${currentMatch.p2.losses}敗`;
+        }
+
+        function pick(side) {
+            let winner = side === 'left' ? currentMatch.p1 : currentMatch.p2;
+            let loser = side === 'left' ? currentMatch.p2 : currentMatch.p1;
+            let wName = winner.name;
+            let lName = loser.name;
+
+            winner.wins++;
+            loser.losses++;
+
+            history.push({
+                round: history.length + 1,
+                type: currentMatch.type,
+                winner: wName,
+                loser: lName
+            });
+
+            // --- 更新 Mermaid 爬梯圖腳本 ---
+            let mId = "M" + matchCounter;
+            // 建立此局比賽的節點
+            mermaidCode += `  ${mId}["第${matchCounter}場<br/>${wName} vs ${lName}"]\n`;
+            // 連接雙方上一個節點到這場比賽
+            mermaidCode += `  ${lastNode[wName]} -->|勝| ${mId}\n`;
+            mermaidCode += `  ${lastNode[lName]} -->|敗| ${mId}\n`;
+
+            // 更新雙方的最後節點位置
+            lastNode[wName] = mId;
+            lastNode[lName] = mId;
+
+            matchCounter++;
+            // ------------------------------
+
+            updateUI();
+        }
+
+        function showResults() {
+            document.getElementById('battle-container').style.display = 'none';
+            document.getElementById('header-area').style.display = 'none';
+            document.getElementById('bracket-img').style.display = 'none';
+            document.body.style.overflow = 'auto';
+            document.getElementById('result-container').style.display = 'block';
+
+            let champion = players.find(p => p.losses < 2).name;
+            document.getElementById('champion-name').innerText = champion;
+
+            // --- 繪製最終爬梯圖冠軍節點 ---
+            let champId = "C1";
+            mermaidCode += `  ${champId}{{"🏆 ${champion} 🏆"}}\n`;
+            mermaidCode += `  ${lastNode[champion]} -->|最終霸主| ${champId}\n`;
+            mermaidCode += `  style ${champId} fill:#ffd700,stroke:#d93025,stroke-width:4px,color:black\n`;
+
+            // 將生成的腳本寫入 DOM 並讓 Mermaid 渲染
+            let chartDiv = document.getElementById('bracket-chart');
+            chartDiv.innerHTML = mermaidCode;
+            mermaid.init(undefined, chartDiv);
+            // ------------------------------
+
+            let tbody = document.getElementById('history-body');
+            history.forEach(match => {
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${match.round}</td>
+                    <td>${match.type}</td>
+                    <td class="win-text">${match.winner}</td>
+                    <td class="lose-text">${match.loser}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        window.onload = updateUI;
+    </script>
+</body>
+
+</html>
